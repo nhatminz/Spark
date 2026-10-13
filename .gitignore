@@ -8,3 +8,7 @@ __pycache__/
 cache/
 *_cache/
 outputs/
+checkpoints/
+*.pt
+*.pth
+*.safetensors

@@ -3,108 +3,27 @@
 from pathlib import Path
 
 import torch
-from common import (
-    anchor_plan,
-    arguments,
+
+from helper.arguments import arguments
+from helper.checkpoints import load_checkpoint, restore_rng, rng_state, save_checkpoint
+from helper.correction import Correction
+from helper.data import data_signature, prompt_tokens, read_rows, windows
+from helper.generation import generate
+from helper.objectives import (
     check_finite,
-    data_signature,
-    draft_objective,
-    load_checkpoint,
     policy_objective,
-    policy_optimizer,
-    precision,
-    prompt_tokens,
-    read_rows,
-    restore_rng,
-    rng_state,
-    save_checkpoint,
     selected_logps,
-    setup,
-    windows,
+    update_draft,
 )
-from correction import Correction
-from decode import generate
-from model import attach_policy_adapter, policy_state, reference_policy, restore_policy
-
-
-def reward_function():
-    from latex2sympy2_extended import NormalizationConfig
-    from math_verify import LatexExtractionConfig, parse, verify
-
-    configuration = [
-        LatexExtractionConfig(
-            normalization_config=NormalizationConfig(
-                nits=False,
-                malformed_operators=False,
-                basic_latex=True,
-                boxed="all",
-                units=True,
-            ),
-            boxed_match_priority=0,
-            try_extract_without_anchor=False,
-        )
-    ]
-
-    def parse_gold(answer):
-        gold = parse(
-            answer,
-            extraction_mode="first_match",
-            extraction_config=[LatexExtractionConfig()],
-        )
-        if not gold:
-            raise ValueError("Unparseable mathematical ground truth")
-        return gold
-
-    def evaluate(text, gold):
-        answer = parse(
-            text, extraction_mode="first_match", extraction_config=configuration
-        )
-        try:
-            correct = float(verify(answer, gold))
-        except (ValueError, TypeError, TimeoutError):
-            correct = 0.0
-        return correct + 0.2 * float(text.count("\n</think>\n") == 1)
-
-    return parse_gold, evaluate
-
-
-def update_draft(target, draft, optimizer, samples, args):
-    eligible = []
-    for ids, mask, _ in samples:
-        if args.method == "tree":
-            if mask[:-2].any():
-                eligible.append((ids, mask, None))
-        else:
-            plan = anchor_plan(ids, mask, draft.spec, args.anchors)
-            if plan is not None:
-                eligible.append((ids, mask, plan))
-    if not eligible:
-        return
-    denominator = (
-        sum(float(plan[1].sum()) for _, _, plan in eligible)
-        if args.method == "block"
-        else len(eligible)
-    )
-    weight = (
-        args.draft_weight
-        if args.draft_weight is not None
-        else (0.1 if args.method == "block" else 1.0)
-    )
-    optimizer.zero_grad(set_to_none=True)
-    draft.train()
-    for ids, mask, plan in eligible:
-        numerator, count = draft_objective(
-            target, draft, ids, mask, args.loss_chunk_size, plan
-        )
-        loss = (
-            numerator / denominator
-            if args.method == "block"
-            else numerator / count / denominator
-        )
-        loss = loss * weight
-        check_finite(loss)
-        loss.backward()
-    optimizer.step()
+from helper.optimizers import policy_optimizer
+from helper.rewards import reward_function
+from helper.runtime import precision, setup
+from models.policy import (
+    attach_policy_adapter,
+    policy_state,
+    reference_policy,
+    restore_policy,
+)
 
 
 def main():

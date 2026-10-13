@@ -1,9 +1,10 @@
 """Tree token matching and parallel block rejection sampling."""
 
 import torch
-from common import backbone, context_forward, precision
 from torch.nn import functional as F
 from transformers import DynamicCache
+
+from .runtime import backbone, context_forward, precision
 
 
 def probabilities(logits, temperature, top_p):

@@ -9,6 +9,33 @@ Thêm `--correction` khi train để bật hiệu chỉnh online: projector đư
 
 Không có logging, thanh tiến trình, dịch vụ nền hoặc phụ thuộc vào các project khác trong workspace. Các thư viện vẫn có thể báo cảnh báo/lỗi. Checkpoint là đầu ra duy nhất của chương trình.
 
+## Cấu trúc mã nguồn
+
+```text
+Spark/
+├── pretrain.py              # Vòng lặp pretrain draft
+├── train.py                 # Vòng lặp GRPO và train draft online
+├── helper/
+│   ├── __init__.py
+│   ├── arguments.py         # Tham số dòng lệnh và kiểm tra cấu hình
+│   ├── data.py              # Đọc dữ liệu, chat template và chia batch
+│   ├── runtime.py           # Nạp target, precision và lấy context features
+│   ├── objectives.py        # Loss policy/draft và cập nhật draft
+│   ├── optimizers.py        # FP32 master weights và tích lũy gradient
+│   ├── generation.py        # Sinh và xác minh token cho tree/block
+│   ├── correction.py        # Hiệu chỉnh online tùy chọn
+│   ├── rewards.py           # Reward đáp án toán và định dạng
+│   └── checkpoints.py       # Lưu/nạp checkpoint và RNG
+├── models/
+│   ├── __init__.py
+│   ├── draft.py             # Kiến trúc draft tree/block
+│   └── policy.py            # Adapter policy và khôi phục trọng số
+├── requirements.txt
+└── README.md
+```
+
+`pretrain.py` và `train.py` giữ vai trò điều phối. Các module trong `helper/` và `models/` chỉ chứa phần triển khai cần cho hai entry point này. Lệnh chạy và định dạng checkpoint giữ nguyên.
+
 ## Môi trường và đầu vào
 
 Dùng Python 3.10 trở lên và bản PyTorch có CUDA phù hợp với GPU. Nếu môi trường đã có các dependency trong `requirements.txt`, dùng trực tiếp môi trường đó. Nếu chưa có:
