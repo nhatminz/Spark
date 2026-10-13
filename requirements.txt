@@ -1,0 +1,5 @@
+torch>=2.4,<3
+transformers>=4.51,<6
+math-verify>=0.8,<0.9
+latex2sympy2-extended>=1.10,<2
+pyarrow>=15
